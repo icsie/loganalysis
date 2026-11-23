@@ -110,7 +110,52 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Database and application setup instructions will be added with the implementation stages.
+### PostgreSQL Database
+
+The local learning bootstrap script creates the `netlogs` database, its `logs`
+schema, the `public.import_history` table, and the restricted application login.
+The local `.env.local` file is ignored by Git. After cloning, create your own
+copy from the safe template and set a local password:
+
+```powershell
+Copy-Item .env.example .env.local
+# Edit .env.local, then run:
+.\run_db_setup.ps1
+```
+
+The script uses psql-specific commands to switch databases and prompts for the
+PostgreSQL administrator password. The checked-in example contains only a
+password placeholder. The requested local password is weak and is only suitable
+for a throwaway learning database; use a strong secret in shared or production
+environments.
+
+`dev_usr` can create dataset tables in `logs` because the CSV importer needs that
+capability. It cannot create databases or roles, and it has no `CREATE` privilege
+in `public`. PostgreSQL may allow connections to other databases through
+cluster-wide `PUBLIC` grants; this script does not change those shared defaults.
+
+## Data Summary
+
+Run the entry point directly from the repository root:
+
+```bat
+python main.py
+```
+
+Or launch the same command using the Windows batch file:
+
+```bat
+run.bat
+```
+
+`run.bat` uses `.venv` when it exists; otherwise it uses the Python interpreter available on `PATH`.
+
+An alternate CSV path can be passed to either command:
+
+```bat
+python main.py data\another_file.csv
+run.bat data\another_file.csv
+```
 
 ## Project Structure
 
