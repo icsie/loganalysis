@@ -1,0 +1,48 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+
+# Distribution and generated files
+build/
+dist/
+*.egg-info/
+htmlcov/
+.coverage
+coverage.xml
+
+# PostgreSQL and database artifacts
+*.dump
+*.backup
+pgdata/
+
+# Application data and uploads
+data/
+uploads/
+backups/
+*.csv
+*.parquet
+*.log
+
+# Project specification
+loganalysis_SPEC.md
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
