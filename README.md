@@ -134,28 +134,71 @@ capability. It cannot create databases or roles, and it has no `CREATE` privileg
 in `public`. PostgreSQL may allow connections to other databases through
 cluster-wide `PUBLIC` grants; this script does not change those shared defaults.
 
-## Data Summary
+## CSV Import
 
-Run the entry point directly from the repository root:
+Install the requirements and initialize the local PostgreSQL database first:
 
-```bat
-python main.py
+```powershell
+pip install -r requirements.txt
+.\run_db_setup.ps1
 ```
 
-Or launch the same command using the Windows batch file:
+After reviewing the import code, run the default CSV import from the repository
+root:
 
-```bat
-run.bat
+```powershell
+.\run.bat
 ```
 
-`run.bat` uses `.venv` when it exists; otherwise it uses the Python interpreter available on `PATH`.
+`run.bat` uses `.venv` when it exists; otherwise it uses the Python interpreter
+available on `PATH`. `main.py` scans `data\*.csv` in filename order. It skips a
+file when its filename or derived `logs.<table_name>` is already in
+`public.import_history`; valid remaining files are imported using SQLAlchemy and
+`DataFrame.to_sql()`. Each CSV has its own transaction, uses `if_exists="fail"`,
+and is recorded in `public.import_history` only after the PostgreSQL row count
+matches the DataFrame. Before table creation, column names are normalized to
+lowercase PostgreSQL identifiers (for example, `Source IP` becomes `source_ip`);
+the CSV values are unchanged. Collisions receive a deterministic numeric suffix
+and reserved words receive a `_field` suffix. The original-to-normalized mapping
+is printed during import.
 
-An alternate CSV path can be passed to either command:
+Pass a different directory as an argument:
 
-```bat
-python main.py data\another_file.csv
-run.bat data\another_file.csv
+```powershell
+.\run.bat .\path\to\csv_directory
 ```
+
+The table name is derived from the CSV filename and must start with a letter or
+underscore. Invalid filenames are reported as failed while other CSV files
+continue. Existing tables are never overwritten.
+
+## QVPN Login Fail Analysis
+
+After importing `w20261123_13_36_23.csv` into `logs.w20261123_13_36_23`, run the
+analysis script from the repository root:
+
+```powershell
+psql -U postgres -d netlogs -f sql/fail_analysis.sql
+```
+
+The script reads the imported PostgreSQL table (not the CSV), selects QVPN
+Service / VPN Server login failures, and stores parsed events in `logs.fail`.
+It keeps usernames, source IPs, and protocols in `logs.username`,
+`logs.sourceip`, and `logs.protocol`; each dimension table's `n` is the number
+of parsed failure events for that value. Unmatched content is saved in
+`logs.errorformats`.
+
+The database setup configures `logs` in `search_path`, so the most frequent
+source IPs can be listed with:
+
+```sql
+SELECT * FROM sourceip ORDER BY n DESC;
+```
+
+Likewise, use `SELECT * FROM username ORDER BY n DESC;` and
+`SELECT * FROM protocol ORDER BY n DESC;` to see the most frequently tried
+usernames and protocols. The `n` values are cumulative: running the script
+again processes the source rows again and increments the counts again.
 
 ## Project Structure
 

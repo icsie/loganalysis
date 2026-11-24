@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import re
 from pathlib import Path
+from typing import TypedDict
 
 import pandas as pd
 
@@ -12,18 +14,54 @@ DEFAULT_CSV_PATH = PROJECT_ROOT / "data" / "20261123_13_36_23.csv"
 IDENTIFIER_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
-def summarize_csv(csv_path: Path) -> tuple[pd.DataFrame, dict[str, object]]:
+class DataSummary(TypedDict):
+    file: str
+    shape: tuple[int, int]
+    duplicate_rows: int
+    duplicate_column_names: list[str]
+    invalid_column_names: list[str]
+    column_summary: pd.DataFrame
+
+
+def load_csv(csv_path: Path) -> pd.DataFrame:
     if not csv_path.is_file():
         raise FileNotFoundError(f"CSV file not found: {csv_path}")
 
     try:
-        df = pd.read_csv(csv_path, encoding="utf-8")
+        with csv_path.open("r", encoding="utf-8-sig", newline="") as csv_file:
+            headers = next(csv.reader(csv_file), None)
     except UnicodeDecodeError as exc:
         raise ValueError(f"CSV is not valid UTF-8: {csv_path}") from exc
+    except csv.Error as exc:
+        raise ValueError(f"CSV header could not be parsed: {csv_path}") from exc
+
+    if not headers:
+        raise ValueError(f"CSV is empty or has no header row: {csv_path}")
+    if any(not name.strip() for name in headers):
+        raise ValueError("CSV column names cannot be empty.")
+    if len(headers) != len(set(headers)):
+        raise ValueError("CSV contains duplicate column names.")
+
+    try:
+        return pd.read_csv(
+            csv_path,
+            encoding="utf-8-sig",
+            dtype=str,
+            keep_default_na=False,
+            na_values=[""],
+        )
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"CSV is not valid UTF-8: {csv_path}") from exc
+    except pd.errors.EmptyDataError as exc:
+        raise ValueError(f"CSV is empty or has no header row: {csv_path}") from exc
     except pd.errors.ParserError as exc:
         raise ValueError(f"CSV could not be parsed: {csv_path}") from exc
 
-    summary: dict[str, object] = {
+
+def summarize_csv(csv_path: Path) -> tuple[pd.DataFrame, DataSummary]:
+    df = load_csv(csv_path)
+
+    summary: DataSummary = {
         "file": str(csv_path),
         "shape": df.shape,
         "duplicate_rows": int(df.duplicated().sum()),
@@ -47,13 +85,16 @@ def summarize_csv(csv_path: Path) -> tuple[pd.DataFrame, dict[str, object]]:
     return df, summary
 
 
-def print_summary(summary: dict[str, object]) -> None:
+def print_summary(summary: DataSummary) -> None:
     print(f"File: {summary['file']}")
     print(f"df.shape: {summary['shape']}")
     print("\nData quality:")
     print(f"Duplicate rows: {summary['duplicate_rows']}")
     print(f"Duplicate column names: {summary['duplicate_column_names']}")
-    print(f"Invalid PostgreSQL-style column names: {summary['invalid_column_names']}")
+    print(
+        "Column names to normalize before import: "
+        f"{summary['invalid_column_names']}"
+    )
     print("\nColumn summary:")
     print(summary["column_summary"].to_string())
 
@@ -77,7 +118,7 @@ def main() -> int:
     csv_path = args.csv_path.resolve()
 
     try:
-        df, summary = summarize_csv(csv_path)
+        _, summary = summarize_csv(csv_path)
     except (FileNotFoundError, ValueError) as exc:
         print(f"Error: {exc}")
         return 1
