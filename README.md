@@ -200,6 +200,100 @@ Likewise, use `SELECT * FROM username ORDER BY n DESC;` and
 usernames and protocols. The `n` values are cumulative: running the script
 again processes the source rows again and increments the counts again.
 
+## IP Geolocation and ASN
+
+Use `proc/enrich_sourceip.py` to enrich IPv4 addresses from `logs.sourceip`,
+ordered by occurrence count, using local GeoLite2 City, Country and ASN databases.
+It reads the existing `.env.local` DB settings and defaults to preview mode.
+Add `--write` to upsert `public.ip_location` in one transaction.
+
+```powershell
+.\.venv\Scripts\python.exe .\proc\enrich_sourceip.py --limit 5
+.\.venv\Scripts\python.exe .\proc\enrich_sourceip.py --limit 5 --write
+```
+
+See [setup, permissions and usage](sql/ip_location.md) before running.
+MMDB files belong under `data/ip_loc/` and are excluded from Git.
+
+### Obtain the MaxMind databases
+
+The `maxminddb` Python package is a reader; installing it does **not** download
+IP location data. Install the package with the project's dependencies:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r .\requirements.txt
+```
+
+1. [Register for GeoLite](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/)
+   and sign in to your MaxMind account.
+2. Open **GeoIP / GeoLite > Download Files** in the account portal. Download the
+   **MMDB / binary** editions of **GeoLite2 City**, **GeoLite2 Country**, and
+   **GeoLite2 ASN**. This importer requires all three, even though City includes
+   country information. CSV editions are not supported by this tool.
+3. Extract the downloaded archives, including the inner archive if necessary,
+   until the `.mmdb` files are accessible. Keep the included license and copyright
+   files with the downloaded data.
+4. Place the extracted folders under `data/ip_loc/`, for example:
+
+   ```text
+   data/ip_loc/
+     GeoLite2-City_YYYYMMDD/
+       GeoLite2-City.mmdb
+     GeoLite2-Country_YYYYMMDD/
+       GeoLite2-Country.mmdb
+     GeoLite2-ASN_YYYYMMDD/
+       GeoLite2-ASN.mmdb
+   ```
+
+   Folder names may differ. The importer searches recursively and selects the
+   newest build of each database type using MMDB metadata. Use `--data-dir` to
+   select a different directory.
+5. Verify the files and preview a lookup before writing to PostgreSQL:
+
+   ```powershell
+   Get-ChildItem .\data\ip_loc -Recurse -Filter *.mmdb
+   .\.venv\Scripts\python.exe .\proc\enrich_sourceip.py --ip 213.209.159.136
+   ```
+
+Manual downloads use your account portal. Automated downloads can use MaxMind's
+GeoIP Update tool and require account credentials/license-key configuration.
+This project's lookup scripts read local files; they do not download databases
+or require a MaxMind license key at lookup time. See the official
+[download and update guide](https://support.maxmind.com/knowledge-base/articles/download-and-update-maxmind-databases).
+
+### Usage, updates and limitations
+
+- **Keep data local:** `data/` is ignored by Git. Do not commit MMDB archives,
+  license keys, account credentials or raw logs, or put them in a public web
+  directory. Follow the applicable MaxMind license, attribution and
+  redistribution requirements before sharing data or derived outputs. This
+  product includes GeoLite data created by [MaxMind](https://www.maxmind.com).
+- **Keep data current:** download current releases regularly, replace the local
+  files while the importer is stopped, and rerun enrichment to refresh stored
+  results. Merely downloading files does not update `public.ip_location`.
+  Remove obsolete local versions according to the current license; do not retain
+  old dated folders indefinitely. Refer to MaxMind's linked guide for the current
+  release schedule and update requirements.
+- **Check versions:** each source's build time is stored in its
+  `*_source_updated_at` column. If any selected source is older than the version
+  already stored for an IP, the importer skips the entire row. `updated_at` is the
+  database write time, not the date the IP's real-world location changed.
+- **Interpret locations cautiously:** coordinates describe an approximate area;
+  display or interpret them together with `accuracy_radius_km`. City/region
+  fields may be missing. VPNs, proxies and cloud hosts can show an exit network's
+  location rather than the user's location. ASN organization identifies a
+  network organization, not an attacker or proof of malicious activity.
+- **Understand missing results:** `not_found` means that source has no record;
+  missing fields remain NULL. A NULL status after a LEFT JOIN can mean the IP has
+  not yet been imported. The current CLI processes full IPv4 addresses only.
+- **Preview first:** without `--write`, lookups do not modify the database.
+  With `--write`, the entire batch commits together or rolls back on failure.
+  Repeated IPs update their existing primary-key row.
+
+See [MaxMind's GeoLite documentation](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/)
+for accuracy, licensing and integration guidance, and
+[the project usage guide](sql/ip_location.md) for database setup and permissions.
+
 ## Project Structure
 
 The workspace structure will grow with implementation:
