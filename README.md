@@ -184,9 +184,15 @@ psql -U postgres -d netlogs -f sql/fail_analysis.sql
 The script reads the imported PostgreSQL table (not the CSV), selects QVPN
 Service / VPN Server login failures, and stores parsed events in `logs.fail`.
 It keeps usernames, source IPs, and protocols in `logs.username`,
-`logs.sourceip`, and `logs.protocol`; each dimension table's `n` is the number
-of parsed failure events for that value. Unmatched content is saved in
-`logs.errorformats`.
+`logs.sourceip`, and `logs.protocol`; each dimension table's `n` counts parsed
+events for that value. Unmatched content is saved in `logs.errorformats`.
+`logs.username.seen_in` is an 8-bit flag defaulting to `00000000`:
+`00000001` marks names seen in
+`logs.fail`, and `00000010` marks names seen in `logs.ok`. The SQL scripts OR
+these flags together, so a username found in both tables has `00000011`.
+Existing names referenced by `logs.fail` are marked with `00000001`.
+When both analysis scripts are run, dimension counts include both sets of
+events.
 
 The database setup configures `logs` in `search_path`, so the most frequent
 source IPs can be listed with:
