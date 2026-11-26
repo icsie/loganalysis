@@ -172,6 +172,23 @@ The table name is derived from the CSV filename and must start with a letter or
 underscore. Invalid filenames are reported as failed while other CSV files
 continue. Existing tables are never overwritten.
 
+## Attackers API
+
+After creating and populating `logs.attackers` with the SQL scripts, start the
+API from the repository root:
+
+```powershell
+uvicorn api:app --reload
+```
+
+`GET http://127.0.0.1:8000/api/attackers` returns all rows from the
+`logs.attackers` view as JSON.
+
+The static map is served by FastAPI at
+`http://127.0.0.1:8000/map_attack.html`. It uses Leaflet with OpenStreetMap
+tiles; circle area scales with each IP's event count, and hovering a circle
+shows its available location and ASN details.
+
 ## QVPN Login Fail Analysis
 
 After importing `w20261123_13_36_23.csv` into `logs.w20261123_13_36_23`, run the

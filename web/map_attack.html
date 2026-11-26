@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="依來源 IP 次數呈現網路記錄地理分佈。">
+    <title>來源 IP 活動地圖</title>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    >
+    <link rel="stylesheet" href="/css/map_attack.css">
+</head>
+<body>
+    <main class="map-shell">
+        <header class="map-header">
+            <div>
+                <p class="eyebrow">NETWORK LOG ANALYSIS</p>
+                <h1>來源 IP 活動地圖</h1>
+                <p class="subtitle">圓圈越大，資料庫記錄的活動次數越多</p>
+            </div>
+            <div class="summary" aria-live="polite">
+                <div class="summary-item">
+                    <span class="summary-label">地圖 IP</span>
+                    <strong id="ip-count">—</strong>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">活動次數</span>
+                    <strong id="attempt-count">—</strong>
+                </div>
+            </div>
+        </header>
+
+        <div class="map-note">
+            IP 地理位置為約略資訊，不代表來源身分或惡意判定。
+        </div>
+        <div id="map" role="application" aria-label="來源 IP 世界地圖"></div>
+        <div id="map-status" class="map-status" role="status" aria-live="polite">
+            正在載入地圖資料…
+        </div>
+    </main>
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""
+    ></script>
+    <script src="/js/map_attack.js" defer></script>
+</body>
+</html>
